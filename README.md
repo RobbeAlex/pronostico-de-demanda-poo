@@ -33,7 +33,146 @@ El sistema utiliza un enfoque de **Ensamble (Promedio de Modelos)** para mejorar
     ```bash
     pip install -r requirements.txt
     ```
+## 📊 Diagrama de Flujo
+El sistema sigue un flujo lineal estructurado en 4 etapas principales, coordinadas por un orquestador central.
 
+```mermaid
+flowchart TD
+    Start([Inicio]) --> Config[Cargar Configuración]
+    Config --> InitMotor[Inicializar MotorPronostico]
+
+    subgraph "1. Gestión de Datos"
+        InitMotor --> LoadData[GestorDatos: Cargar y Procesar CSV]
+        LoadData --> MeltData[Transformar a Series Temporales - Melt]
+        MeltData --> Filter[Filtrar Top N Productos/Clientes]
+    end
+
+    subgraph "2. Clustering (No Supervisado)"
+        Filter --> PrepCluster[Preparar Pivot Table]
+        PrepCluster --> Scale[Escalar Datos]
+        Scale --> PCA[Reducción de Dimensión - PCA]
+        PCA --> KMeans[Agrupamiento - KMeans]
+        KMeans --> AssignCluster[Asignar Etiquetas de Cluster]
+    end
+
+    subgraph "3. Bucle de Pronóstico (Iterativo)"
+        AssignCluster --> LoopStart{¿Hay más series?}
+        LoopStart -- Sí --> CheckMin[Verificar Min Datos Entrenamiento]
+        CheckMin -- Insuficiente --> LoopStart
+        CheckMin -- Suficiente --> TrainModels
+
+        subgraph "Ensamble de Modelos"
+            TrainModels[Entrenar Modelos] --> M1[Prophet]
+            TrainModels --> M2[SARIMA]
+            TrainModels --> M3[Random Forest]
+            
+            M1 --> Pred1[Predicción 1]
+            M2 --> Pred2[Predicción 2]
+            M3 --> Pred3[Predicción 3]
+            
+            Pred1 & Pred2 & Pred3 --> Avg[Promedio - Ensemble]
+        end
+        
+        Avg --> Store[Guardar Resultado Serie]
+        Store --> LoopStart
+    end
+
+    LoopStart -- No --> Consolidate[Consolidar Resultados]
+    Consolidate --> MergeClusters[Unir con Etiquetas de Cluster]
+    MergeClusters --> ExportCSV[Exportar CSV Final]
+
+    subgraph "4. Visualización"
+        ExportCSV --> VizInit[VisualizadorPronosticos]
+        VizInit --> LoadRes[Cargar Resultados]
+        LoadRes --> GenPlots[Generar Gráficas Top Series]
+        GenPlots --> SavePNG[Guardar PNGs]
+    end
+
+    SavePNG --> End([Fin])
+```
+## 🧩 Diagrama de Clases UML
+
+```mermaid
+classDiagram
+    %% Clase de Configuración
+    class Configuracion {
+        +STR ARCHIVO_ENTRADA
+        +STR ARCHIVO_SALIDA
+        +INT TOP_PRODUCTOS
+        +INT TOP_CLIENTES
+        +TUPLE SARIMA_ORDER
+        +INT RF_ESTIMADORES
+        +INT K_CLUSTERS
+    }
+
+    %% Gestión de Datos
+    class GestorDatos {
+        +DataFrame df_procesado
+        +List top_productos
+        +List top_clientes
+        +cargar_y_procesar()
+        +filtrar_top_series()
+        +obtener_datos_para_clustering() DataFrame
+    }
+
+    %% Clustering
+    class AnalizadorClusters {
+        +ejecutar_analisis(df_pivot) DataFrame
+    }
+
+    %% Modelos (Polimorfismo)
+    class ModeloPronostico {
+        <<Abstract>>
+        +object modelo
+        +str nombre
+        +entrenar(df_train)*
+        +predecir(fechas_futuras)*
+    }
+
+    class ModeloProphet {
+        +entrenar(df_train)
+        +predecir(fechas_futuras)
+    }
+
+    class ModeloSARIMA {
+        +entrenar(df_train)
+        +predecir(fechas_futuras)
+    }
+
+    class ModeloRandomForest {
+        +entrenar(df_train)
+        +predecir(fechas_futuras)
+        -_crear_features(df)
+    }
+
+    %% Orquestador
+    class MotorPronostico {
+        +GestorDatos gestor
+        +AnalizadorClusters clusterer
+        +List resultados
+        +ejecutar()
+    }
+
+    %% Visualización
+    class VisualizadorPronosticos {
+        +str archivo
+        +DataFrame df
+        +cargar_resultados()
+        +graficar_top_series(n)
+    }
+
+    %% Relaciones
+    ModeloPronostico <|-- ModeloProphet : Herencia
+    ModeloPronostico <|-- ModeloSARIMA : Herencia
+    ModeloPronostico <|-- ModeloRandomForest : Herencia
+
+    MotorPronostico *-- GestorDatos : Compone
+    MotorPronostico *-- AnalizadorClusters : Compone
+    MotorPronostico ..> ModeloPronostico : Usa (Instancia Dinámicamente)
+    MotorPronostico ..> Configuracion : Lee Parámetros
+
+    VisualizadorPronosticos ..> Configuracion : Lee Rutas
+```
 ## 📂 Estructura de Datos de Entrada
 
 El script espera un archivo CSV en la raíz (o configurado en la clase `Configuracion`) con el nombre:
@@ -54,7 +193,8 @@ forecast-ensemble-system/
 │
 ├── data/
 │   ├── inputs/     # Aquí guardas "Datos Históricos de Pedidos..."
-│   └── outputs/    # Aquí se guardarán los CSV y gráficas generadas
+│   ├── outputs/    # Aquí se guardarán los CSV y gráficas generadas
+│   └── docs/       # Aquí se guardarán el diagrama de flujo y el diagrama UML
 │
 ├── src/
 │   ├── __init__.py
