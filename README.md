@@ -192,13 +192,13 @@ python src/main.py
 forecast-ensemble-system/
 │
 ├── data/
-│   ├── inputs/     # Aquí guardas "Datos Históricos de Pedidos..."
-│   ├── outputs/    # Aquí se guardarán los CSV y gráficas generadas
-│   └── docs/       # Aquí se guardarán el diagrama de flujo y el diagrama UML
+│   ├── inputs/     # Datos crudos
+│   ├── outputs/    # CSV y gráficas generadas
+│   └── docs/       # diagrama de flujo y diagrama UML
 │
 ├── src/
 │   ├── __init__.py
-│   └── main.py     # Tu código (Codigo.py renombrado)
+│   └── main.py     # Codigo de pronostico de demanda poo
 │
 ├── .gitignore      # Archivo para excluir archivos temporales y datos
 ├── LICENSE         # Licencia de uso (MIT recomendada)
